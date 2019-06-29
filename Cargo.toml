@@ -7,6 +7,8 @@ edition = "2018"
 [dependencies]
 image = "*"
 png = "0.14.1"
+clap = "*"
+chrono = "0.4"
 
 [dependencies.xlib]
 path = "xlib"
