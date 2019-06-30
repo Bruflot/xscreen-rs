@@ -1,0 +1,9 @@
+[package]
+name = "xlib"
+version = "0.1.0"
+authors = ["Bruflot <git@bruflot.com>"]
+edition = "2018"
+
+[dependencies]
+x11 = "2.18"
+libc = "0.2"

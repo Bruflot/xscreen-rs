@@ -1,0 +1,16 @@
+// events
+pub const KEY_PRESS_MASK: i64 = 0x0000_0001;
+pub const KEY_PRESS_RELEASE: i64 = 0x0000_0002;
+pub const BUTTON_PRESS_MASK: i64 = 0x0000_0004;
+pub const BUTTON_RELEASE_MASK: i64 = 0x0000_0008;
+pub const STRUCTURE_NOTIFY_MASK: i64 = 0x0002_0000;
+pub const SUBSTRUCTURE_NOTIFY_MASK: i64 = 0x0008_0000;
+pub const SUBSTRUCTURE_REDIRECT_MASK: i64 = 0x0010_0000;
+pub const POINTER_MOTION_MASK: i64 = 0x0000_0040;
+pub const BUTTON_MOTION_MASK: i64 = 0x0000_2000;
+pub const BUTTON1_MOTION_MASK: i64 = 0x0000_0100;
+
+// image formats
+pub const XY_BITMAP: i32 = 0;
+pub const XY_PIXMAP: i32 = 1;
+pub const Z_PIXMAP: i32 = 2;
