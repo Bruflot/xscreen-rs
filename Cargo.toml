@@ -5,9 +5,9 @@ authors = ["Bruflot <git@bruflot.com>"]
 edition = "2018"
 
 [dependencies]
-image = "*"
-png = "0.14.1"
-clap = "*"
+image = "0.21"
+png = "0.14"
+clap = "2.33"
 chrono = "0.4"
 
 [dependencies.xlib]

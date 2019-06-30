@@ -16,6 +16,8 @@ pub struct Screenshot {
     height: u32,
 }
 
+// ? Window Builder
+// ? window PID
 impl Screenshot {
     pub fn fullscreen(display: &Display) -> Self {
         let root = display.default_window();
