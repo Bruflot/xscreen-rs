@@ -12,7 +12,7 @@ cargo build --features overlay
 
 ## Usage
 
-Global keybinds must be handled/configured by your window manager. Window capture can be toggled from region capture by hitting space.
+Global keybinds must be handled by your window manager. Window capture can be toggled from region capture by hitting space.
 
 ```
 xscreen [FLAGS] [OPTIONS] <output>
