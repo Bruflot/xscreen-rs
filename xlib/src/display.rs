@@ -48,6 +48,17 @@ impl Display {
         self.inner
     }
 
+    pub fn create_colormap(&self, window: &Window, visual: *mut xlib::Visual, alloc: i32) -> u64 {
+        unsafe { xlib::XCreateColormap(self.inner, window.as_raw(), visual, alloc) }
+    }
+
+    // XFlush
+    pub fn flush(&self) {
+        unsafe {
+            xlib::XFlush(self.inner);
+        }
+    }
+
     // XSync
     pub fn sync<T: Into<i32>>(&self, discard: T) {
         unsafe {
@@ -181,7 +192,7 @@ impl Display {
 
     pub fn draw_rectangle<T: Into<u64>>(&self, drawable: T, gc: GContext, rect: Rect) {
         unsafe {
-            xlib::XDrawRectangle(
+            xlib::XFillRectangle(
                 self.inner,
                 drawable.into(),
                 gc.as_raw(),
@@ -197,7 +208,7 @@ impl Display {
         &self,
         window: &Window,
         owner_events: bool,
-        event_mask: u32,
+        event_mask: i64,
         confine_to: Option<&Window>,
         cursor: u64,
         time: u64,
@@ -212,7 +223,7 @@ impl Display {
                 self.inner,
                 window.as_raw(),
                 owner_events as i32,
-                event_mask,
+                event_mask as u32,
                 xlib::GrabModeAsync,
                 xlib::GrabModeAsync,
                 confine_win,

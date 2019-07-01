@@ -9,6 +9,7 @@ image = "0.21"
 png = "0.14"
 clap = "2.33"
 chrono = "0.4"
+x11 = "*"
 
 [dependencies.xlib]
 path = "xlib"

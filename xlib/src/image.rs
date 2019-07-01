@@ -1,7 +1,7 @@
 // XCreateImage, XDestroyImage, XGetImage, XGetSubImage
 // XInitImage, XPutImage, XSubImage(?)
 use crate::{Display, Window, XImage};
-use std::slice;
+use std::{mem, slice};
 use x11::xlib;
 
 pub struct Image {
@@ -59,5 +59,43 @@ impl Drop for Image {
                 xlib::XDestroyImage(self.inner);
             }
         }
+    }
+}
+
+pub struct Visual(pub xlib::Visual);
+
+impl Visual {
+    pub fn as_raw(&self) -> xlib::Visual {
+        self.0
+    }
+}
+
+impl Default for Visual {
+    fn default() -> Self {
+        unsafe { Self(mem::zeroed()) }
+    }
+}
+
+pub struct VisualInfo(pub xlib::XVisualInfo);
+
+impl VisualInfo {
+    pub fn as_raw(&self) -> xlib::XVisualInfo {
+        self.0
+    }
+
+    pub fn from(display: &Display, screen: i32, depth: i32, color: i32) -> Self {
+        let mut info = Self::default();
+        let mut raw = info.as_raw();
+        unsafe {
+            xlib::XMatchVisualInfo(display.as_raw(), screen, depth, color, &mut raw);
+        }
+        info.0 = raw;
+        info
+    }
+}
+
+impl Default for VisualInfo {
+    fn default() -> Self {
+        unsafe { Self(mem::zeroed()) }
     }
 }

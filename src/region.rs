@@ -1,83 +1,114 @@
-use std::mem;
-use xlib::{Display, EventKind, GCValues, GContext, Rect, Window, WindowAttributes};
+use xlib::{Display, EventKind, GCValues, GContext, Rect, SetWindowAttributes, VisualInfo, Window};
 
-const KEY_Q: char = 'q';
+// const SPACE: char = '\u{0020}';
 const ESCAPE: char = '\u{FF1B}';
+const KEY_Q: char = 'q';
 const MOUSE_LEFT: u32 = 1;
 const MOUSE_RIGHT: u32 = 3;
+const BACKGROUND: u64 = 0;
+const FOREGROUND: u64 = 0x73284;
 
 pub struct Region<'a> {
     display: &'a Display,
-    parent: Window,
+    window: Window,
     active: bool,
 }
 
+// ? Grab keyboard to prevent other keybinds from interfering
 impl<'a> Region<'a> {
     /// Sets up the window by calling the relevant member functions.
     pub fn new(display: &'a Display) -> Self {
-        let mut parent = Self::create_parent(display);
-        parent.grab_events();
-        parent.set_attrs();
-        parent
+        let mut window = Self::create_parent(display);
+        window.grab_events();
+        window
     }
 
-    /// Create the parent window that covers the entire screen.
-    /// If the `overlay` feature is enabled, the background color will be set
-    /// to a translucent color.
+    // fn create_compositor_window(display: &'a Display) -> Self{
+    // }
+
+    /// Creates the parent window that covers the entire screen. This is a pop-up window that
+    /// will not be manged by your window manager.
     fn create_parent(display: &'a Display) -> Self {
         let width = display.get_width(0) as u32;
         let height = display.get_height(0) as u32;
+        let visual = VisualInfo::from(display, 0, 32, xlib::TRUE_COLOR);
         let rect = Rect {
             x: 0,
             y: 0,
             width,
             height,
         };
-        let window = Window::new(&display, rect);
+
+        let mut attr = SetWindowAttributes::default();
+        attr.0.background_pixel = BACKGROUND;
+        attr.0.border_pixel = 0;
+        attr.0.cursor = display.create_font_cursor(34);
+        attr.0.colormap = display.create_colormap(
+            &display.default_window(),
+            visual.as_raw().visual,
+            xlib::ALLOC_NONE,
+        );
+        attr.0.override_redirect = 1;
+        attr.0.do_not_propagate_mask = x11::xlib::KeyPressMask;
+
+        let window = Window::new(
+            &display,
+            rect,
+            32,
+            visual.as_raw().visual,
+            xlib::CW_COLORMAP
+                | xlib::CW_BORDER_PIXEL
+                | xlib::CW_BACK_PIXEL
+                | xlib::CW_CURSOR
+                | xlib::CW_OVERRIDE_REDIRECT
+                | xlib::CW_DONT_PROPAGATE,
+            &mut attr,
+        );
 
         Self {
             display,
-            parent: window,
+            window,
             active: true,
         }
     }
 
-    /// Register the key- and button-related events we want to receive,
+    /// Checks if a compositor is present.
+    pub fn has_compositor(&self) -> bool{
+        unsafe{
+            let c_str = std::ffi::CString::new("_NET_WM_CM_S0").unwrap();
+            let test = x11::xlib::XInternAtom(self.display.as_raw(), c_str.as_ptr(), 0);
+            x11::xlib::XGetSelectionOwner(self.display.as_raw(), test) != 0
+        }
+    }
+
+    /// Registers the key- and button-related events we want to receive,
     /// along with any display changes.
     fn grab_events(&mut self) {
-        self.display.grab_key(&self.parent, ESCAPE, None);
-        self.display.grab_key(&self.parent, KEY_Q, None);
-        self.display.grab_button(&self.parent, MOUSE_LEFT, None);
-        self.display.grab_button(&self.parent, MOUSE_RIGHT, None);
+        self.display.grab_key(&self.window, ESCAPE, None);
+        self.display.grab_key(&self.window, KEY_Q, None);
+        self.display.grab_button(&self.window, MOUSE_LEFT, None);
+        self.display.grab_button(&self.window, MOUSE_RIGHT, None);
         self.display
-            .select_input(&self.parent, xlib::STRUCTURE_NOTIFY_MASK);
+            .select_input(&self.window, xlib::STRUCTURE_NOTIFY_MASK);
     }
 
-    /// Set the attributes of the parent window. This includes background
-    /// color and cursor.
-    fn set_attrs(&mut self) {
-        let mut attr: WindowAttributes = unsafe { mem::zeroed() };
-        let cursor = self.display.create_font_cursor(34);
-        attr.background_pixel = 0x8080_8080;
-        attr.cursor = cursor;
-        self.parent.set_attributes(&mut attr, 0x0002 | 0x4000);
-    }
-
-    /// Draw the rectangle that represents the highlighted region.
+    /// Draws the rectangle that represents the highlighted region.
     /// Only used for region capture.
     fn draw_rect(&self, rect: Rect) {
         let values = GCValues::default();
-        let gc = GContext::new(self.display, self.parent.as_raw(), 0, values);
-        self.display.draw_rectangle(self.parent.as_raw(), gc, rect);
+        let gc = GContext::new(&self.display, &self.window, 0, values);
+        gc.set_foreground(FOREGROUND);
+
+        self.display.draw_rectangle(self.window.as_raw(), gc, rect);
     }
 
-    /// Grab the pointer - this is necessary to receive motion events while
+    /// Grabs the pointer - this is necessary to receive motion events while
     /// any of the mouse buttons are being held down.
     fn grab_pointer(&self) {
         self.display.grab_pointer(
-            &self.parent,
+            &self.window,
             true,
-            (xlib::BUTTON1_MOTION_MASK | xlib::BUTTON_RELEASE_MASK) as u32,
+            xlib::BUTTON1_MOTION_MASK | xlib::BUTTON_RELEASE_MASK,
             None,
             0,
             0,
@@ -89,6 +120,17 @@ impl<'a> Region<'a> {
         self.display.ungrab_pointer(0);
     }
 
+    /// Helper function for creating `Rect`s from pairs of tuples. 
+    #[inline]
+    fn to_rect(start: (i32, i32), end: (i32, i32)) -> Rect{
+        Rect{
+            x: i32::min(start.0, end.0),
+            y: i32::min(start.1, end.1),
+            width: (end.0 - start.0).abs() as u32,
+            height: (end.1 - start.1).abs() as u32,
+        }
+    }
+
     /// This function is responsible for drawing both the parent window and the
     /// rectangle that highlights the masked region. It also handles the main
     /// event loop of the UI.
@@ -96,14 +138,18 @@ impl<'a> Region<'a> {
     /// May return `None` if the region capture was cancelled or a region of
     /// 0x0px was selected.
     pub fn show(&mut self) -> Option<Rect> {
-        self.display.map_window(&self.parent);
+        self.display.map_window(&self.window);
         self.display.sync(false);
+        self.window.focus(xlib::REVERT_TO_POINTER_ROOT);
+
+        println!("{}", self.has_compositor());
 
         let mut start_pos = (0, 0);
-        let mut end_pos = (0, 0);
+        let mut end_pos;
 
         loop {
             let event = self.display.next_event();
+
             match event.get_kind() {
                 // Either the primary or secondary mouse button was pressed
                 EventKind::ButtonPress(event) => match event.button {
@@ -120,19 +166,13 @@ impl<'a> Region<'a> {
                 EventKind::ButtonRelease(event) => {
                     if event.button == MOUSE_LEFT {
                         self.ungrab_pointer();
-                        let width = (end_pos.0 - start_pos.0).abs() as u32;
-                        let height = (end_pos.1 - start_pos.1).abs() as u32;
+                        end_pos = self.display.query_pointer(&self.display.default_window());
+                        let rect = Self::to_rect(start_pos, end_pos);
 
-                        if width == 0 || height == 0 {
+                        if rect.width == 0 || rect.height == 0{
                             break;
                         }
-
-                        return Some(Rect {
-                            x: i32::min(start_pos.0, end_pos.0),
-                            y: i32::min(start_pos.1, end_pos.1),
-                            width,
-                            height,
-                        });
+                        return Some(rect);
                     }
                 }
 
@@ -140,18 +180,13 @@ impl<'a> Region<'a> {
                 // Re-draw the rectangle and update the end position.
                 EventKind::Motion(_) => {
                     end_pos = self.display.query_pointer(&self.display.default_window());
-                    self.draw_rect(Rect {
-                        x: i32::min(start_pos.0, end_pos.0),
-                        y: i32::min(start_pos.1, end_pos.1),
-                        width: (end_pos.0 - start_pos.0).abs() as u32,
-                        height: (end_pos.1 - start_pos.1).abs() as u32,
-                    });
+                    self.window.clear();
+                    let rect = Self::to_rect(start_pos, end_pos);
+                    self.draw_rect(rect);
                 }
 
-                // A Keybind for closing the application was triggered.
-                EventKind::KeyPress(_) => {
-                    break;
-                }
+                // A key event that we monitor was triggered.
+                EventKind::KeyPress(_) => break,
 
                 // The window was destroyed by external means.
                 EventKind::DestroyWindow(_) => {
@@ -170,7 +205,8 @@ impl<'a> Region<'a> {
 impl<'a> Drop for Region<'a> {
     fn drop(&mut self) {
         if self.active {
-            self.parent.destroy();
+            self.window.clear();
+            self.window.destroy();
         }
     }
 }

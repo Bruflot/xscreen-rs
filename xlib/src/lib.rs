@@ -3,7 +3,6 @@ extern crate x11;
 
 mod consts;
 mod display;
-mod errors;
 mod events;
 mod gcontext;
 mod image;
@@ -19,12 +18,20 @@ pub(crate) type XWindow = xlib::Window;
 
 pub use consts::*;
 pub use display::Display;
-pub use errors::XError;
 pub use events::{Event, EventKind};
 pub use gcontext::{GCValues, GContext};
-pub use image::Image;
-pub use window::{Window, WindowAttributes};
+pub use image::{Image, Visual, VisualInfo};
+pub use window::{SetWindowAttributes, Window};
 pub type XResult<T> = std::result::Result<T, XError>;
+
+#[derive(Debug)]
+pub enum XError {
+    BadAlloc,
+    BadMatch,
+    BadValue,
+    BadWindow,
+    ConnectionError,
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct Rect {

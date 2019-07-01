@@ -83,8 +83,8 @@ fn main() {
         unimplemented!()
     } else if matches.is_present("region") {
         let region = Region::new(&display).show();
-        if region.is_some() {
-            Screenshot::with_rect(&display, &root, region.unwrap())
+        if let Some(x) = region{
+            Screenshot::with_rect(&display, &root, x)
                 .save(path)
                 .unwrap();
         }

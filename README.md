@@ -1,18 +1,15 @@
 # xscreen-rs
-A simple screenshot utility written in Rust. Uses `xlib` and `image-png`.  
-Supports region, window, and fullscreen capture.
+A simple and fast screenshot utility written in Rust. Uses `xlib` and `image-png`.  
+Supports region and fullscreen capture. Window capture is a WIP.
 
-For those using a compositor, there is a feature for adding a translucent
-overlay that darkens the unmasked region in case of region capture. This feature
-must be enabled by compiling with the `--features overlay` flag.
-
-```
-cargo build --features overlay
-```
+Note: The overlay that darkens the background and highlights the selected region only works if you
+are using a window compositor; otherwise, only an outline will be drawn that highlights the
+selected area.
 
 ## Usage
 
-Global keybinds must be handled by your window manager. Window capture can be toggled from region capture by hitting space.
+Global keybinds must be handled by your window manager. Window capture can be toggled from region
+capture by hitting space.
 
 ```
 xscreen [FLAGS] [OPTIONS] <output>
@@ -30,6 +27,6 @@ ARGS:
     <output>    Specifies the directory in which the screenshot will be saved. Default is $HOME.
 ```
 
-
 ## Todo
+- [ ] Window capture
 - [ ] Copy the produced image directly to the clipboard

@@ -7,7 +7,7 @@ use std::path::Path;
 use xlib::{Display, Image, Rect, Window};
 
 const RED_MASK: u64 = 16_711_680;
-const GREEN_MASK: u64 = 65280;
+const GREEN_MASK: u64 = 65_280;
 const BLUE_MASK: u64 = 255;
 
 pub struct Screenshot {
@@ -16,8 +16,7 @@ pub struct Screenshot {
     height: u32,
 }
 
-// ? Window Builder
-// ? window PID
+// ? VisualInfo for masks
 impl Screenshot {
     pub fn fullscreen(display: &Display) -> Self {
         let root = display.default_window();

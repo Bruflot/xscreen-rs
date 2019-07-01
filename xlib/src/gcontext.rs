@@ -1,4 +1,4 @@
-use crate::{Display, XGCValues, XGC};
+use crate::{Display, Window, XGCValues, XGC};
 use std::mem;
 use x11::xlib;
 
@@ -20,31 +20,34 @@ impl Default for GCValues {
     }
 }
 
-pub struct GContext {
+pub struct GContext<'a> {
+    display: &'a Display,
     inner: XGC,
 }
 
-impl GContext {
-    pub fn new<T: Into<u64>>(
-        display: &Display,
-        drawable: T,
+impl<'a> GContext<'a> {
+    pub fn new(
+        display: &'a Display,
+        drawable: &Window,
         value_mask: u64,
         values: GCValues,
     ) -> Self {
         let gc = unsafe {
             xlib::XCreateGC(
                 display.as_raw(),
-                drawable.into(),
+                drawable.as_raw(),
                 value_mask,
                 values.as_raw(),
             )
         };
-        Self { inner: gc }
+        Self { display, inner: gc }
     }
 
-    pub fn flush(&self) {}
-
-    fn free(&self) {}
+    pub fn set_foreground(&self, color: u64){
+        unsafe{
+            xlib::XSetForeground(self.display.as_raw(), self.inner, color);
+        }
+    }
 
     pub fn as_raw(&self) -> XGC {
         self.inner
