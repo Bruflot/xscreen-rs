@@ -4,12 +4,12 @@ Supports region and fullscreen capture. Window capture is a WIP.
 
 Note: The overlay that darkens the background and highlights the selected region only works if you
 are using a window compositor; otherwise, only an outline will be drawn that highlights the
-selected area.
+selected area. The colors can be edited in `src/region.rs`.
 
 ## Usage
 
-Global keybinds must be handled by your window manager. Window capture can be toggled from region
-capture by hitting space.
+Global keybinds must be handled by your window manager.  
+Window capture can be toggled from region capture by hitting space.
 
 ```
 xscreen [FLAGS] [OPTIONS] <output>
