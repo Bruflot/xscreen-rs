@@ -90,6 +90,18 @@ impl Window {
         self._inner
     }
 
+    pub fn grab_keyboard<T: Into<i32>>(&self, owner_events: T, pointer_mode: i32, keyboard_mode: i32){
+        unsafe{
+            xlib::XGrabKeyboard(self.display, self._inner, owner_events.into(), pointer_mode, keyboard_mode, 0);
+        }
+    }
+
+    pub fn ungrab_keyboard(&self){
+        unsafe{
+            xlib::XUngrabKeyboard(self.display, 0);
+        }
+    }
+
     pub fn focus(&self, revert_to: i32){
         unsafe{
             xlib::XSetInputFocus(self.display, self._inner, revert_to, 0);

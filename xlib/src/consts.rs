@@ -10,6 +10,10 @@ pub const POINTER_MOTION_MASK: i64 = 0x0000_0040;
 pub const BUTTON_MOTION_MASK: i64 = 0x0000_2000;
 pub const BUTTON1_MOTION_MASK: i64 = 0x0000_0100;
 
+// grab modes
+pub const GRAB_MODE_SYNC: i32 = 0;
+pub const GRAB_MODE_ASYNC: i32 = 1;
+
 // image formats
 pub const XY_BITMAP: i32 = 0;
 pub const XY_PIXMAP: i32 = 1;

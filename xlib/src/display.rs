@@ -190,7 +190,7 @@ impl Display {
         (root_x, root_y)
     }
 
-    pub fn draw_rectangle<T: Into<u64>>(&self, drawable: T, gc: GContext, rect: Rect) {
+    pub fn draw_rectangle<T: Into<u64>>(&self, drawable: T, gc: &GContext, rect: Rect) {
         unsafe {
             xlib::XFillRectangle(
                 self.inner,
@@ -209,6 +209,8 @@ impl Display {
         window: &Window,
         owner_events: bool,
         event_mask: i64,
+        pointer_mode: i32,
+        keyboard_mode: i32,
         confine_to: Option<&Window>,
         cursor: u64,
         time: u64,
@@ -224,8 +226,8 @@ impl Display {
                 window.as_raw(),
                 owner_events as i32,
                 event_mask as u32,
-                xlib::GrabModeAsync,
-                xlib::GrabModeAsync,
+                pointer_mode,
+                keyboard_mode,
                 confine_win,
                 cursor,
                 time,
@@ -233,9 +235,9 @@ impl Display {
         }
     }
 
-    pub fn ungrab_pointer(&self, time: u64) {
+    pub fn ungrab_pointer(&self) {
         unsafe {
-            xlib::XUngrabPointer(self.inner, time);
+            xlib::XUngrabPointer(self.inner, 0);
         }
     }
 

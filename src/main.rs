@@ -28,23 +28,37 @@ fn delay(matches: Option<&str>) {
     }
 }
 
-fn filename(matches: Option<&str>) -> PathBuf {
+fn filename(matches: Option<&str>) -> Option<PathBuf> {
     let time = Local::now()
         .format("Screenshot %Y-%m-%d %H-%M-%S.png")
         .to_string();
     let mut path = match matches {
         Some(p) => PathBuf::from(p),
-        None => env::home_dir().unwrap(),
+        None => env::home_dir()?,
     };
     path.push(time);
-    path
+    Some(path)
 }
 
-fn main() {
+fn main(){
     let matches = App::new("xscreen")
         .version("0.1")
         .author("Bruflot <git@bruflot.com>")
         .about("Simple X11 screenshot utility")
+        .arg(
+            Arg::with_name("clipboard")
+                .short("c")
+                .long("clipboard")
+                .help("Copies the image directly to your clipboard")
+        )
+        .arg(
+            Arg::with_name("delay")
+                .short("d")
+                .long("delay")
+                .value_name("SECONDS")
+                .help("Delay the screenshot by the specified duration")
+                .conflicts_with_all(&["window", "region"]),
+        )
         .arg(
             Arg::with_name("region")
                 .short("r")
@@ -60,14 +74,6 @@ fn main() {
                 .conflicts_with("region"),
         )
         .arg(
-            Arg::with_name("delay")
-                .short("d")
-                .long("delay")
-                .value_name("SECONDS")
-                .help("Delay the screenshot by the specified duration")
-                .conflicts_with_all(&["window", "region"]),
-        )
-        .arg(
             Arg::with_name("output")
                 .help("Specifies the directory in which the screenshot will be saved. Default is $HOME.")
                 .index(1),
@@ -75,7 +81,7 @@ fn main() {
         .get_matches();
 
     delay(matches.value_of("delay"));
-    let path = filename(matches.value_of("output"));
+    let path = filename(matches.value_of("output")).expect("Invalid file path");
     let display = Display::connect(None).expect("Failed to connect to X");
     let root = display.default_window();
 
@@ -83,7 +89,7 @@ fn main() {
         unimplemented!()
     } else if matches.is_present("region") {
         let region = Region::new(&display).show();
-        if let Some(x) = region{
+        if let Some(x) = region {
             Screenshot::with_rect(&display, &root, x)
                 .save(path)
                 .unwrap();

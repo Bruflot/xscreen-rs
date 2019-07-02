@@ -5,16 +5,17 @@ const ESCAPE: char = '\u{FF1B}';
 const KEY_Q: char = 'q';
 const MOUSE_LEFT: u32 = 1;
 const MOUSE_RIGHT: u32 = 3;
-const BACKGROUND: u64 = 0;
+const BACKGROUND: u64 = 0x6600_0000;
 const FOREGROUND: u64 = 0x73284;
 
 pub struct Region<'a> {
     display: &'a Display,
     window: Window,
+    gc: GContext<'a>,
     active: bool,
 }
 
-// ? Grab keyboard to prevent other keybinds from interfering
+// TODO: restructure create_parent; should be separate functions.
 impl<'a> Region<'a> {
     /// Sets up the window by calling the relevant member functions.
     pub fn new(display: &'a Display) -> Self {
@@ -49,7 +50,7 @@ impl<'a> Region<'a> {
             xlib::ALLOC_NONE,
         );
         attr.0.override_redirect = 1;
-        attr.0.do_not_propagate_mask = x11::xlib::KeyPressMask;
+        attr.0.border_pixel = 16_000_000;
 
         let window = Window::new(
             &display,
@@ -64,17 +65,22 @@ impl<'a> Region<'a> {
                 | xlib::CW_DONT_PROPAGATE,
             &mut attr,
         );
+        
+        let values = GCValues::default();
+        let gc = GContext::new(&display, &window, 0, values);
+        gc.set_foreground(FOREGROUND);
 
         Self {
             display,
             window,
+            gc,
             active: true,
         }
     }
 
     /// Checks if a compositor is present.
-    pub fn has_compositor(&self) -> bool{
-        unsafe{
+    pub fn has_compositor(&self) -> bool {
+        unsafe {
             let c_str = std::ffi::CString::new("_NET_WM_CM_S0").unwrap();
             let test = x11::xlib::XInternAtom(self.display.as_raw(), c_str.as_ptr(), 0);
             x11::xlib::XGetSelectionOwner(self.display.as_raw(), test) != 0
@@ -84,8 +90,6 @@ impl<'a> Region<'a> {
     /// Registers the key- and button-related events we want to receive,
     /// along with any display changes.
     fn grab_events(&mut self) {
-        self.display.grab_key(&self.window, ESCAPE, None);
-        self.display.grab_key(&self.window, KEY_Q, None);
         self.display.grab_button(&self.window, MOUSE_LEFT, None);
         self.display.grab_button(&self.window, MOUSE_RIGHT, None);
         self.display
@@ -95,11 +99,7 @@ impl<'a> Region<'a> {
     /// Draws the rectangle that represents the highlighted region.
     /// Only used for region capture.
     fn draw_rect(&self, rect: Rect) {
-        let values = GCValues::default();
-        let gc = GContext::new(&self.display, &self.window, 0, values);
-        gc.set_foreground(FOREGROUND);
-
-        self.display.draw_rectangle(self.window.as_raw(), gc, rect);
+        self.display.draw_rectangle(self.window.as_raw(), &self.gc, rect);
     }
 
     /// Grabs the pointer - this is necessary to receive motion events while
@@ -109,6 +109,8 @@ impl<'a> Region<'a> {
             &self.window,
             true,
             xlib::BUTTON1_MOTION_MASK | xlib::BUTTON_RELEASE_MASK,
+            xlib::GRAB_MODE_ASYNC,
+            xlib::GRAB_MODE_ASYNC,
             None,
             0,
             0,
@@ -117,14 +119,22 @@ impl<'a> Region<'a> {
 
     /// Ungrabs the pointer.
     fn ungrab_pointer(&self) {
-        self.display.ungrab_pointer(0);
+        self.display.ungrab_pointer();
     }
 
-    /// Helper function for creating `Rect`s from pairs of tuples. 
+    fn grab_keyboard(&self){
+        self.window.grab_keyboard(false, xlib::GRAB_MODE_ASYNC, xlib::GRAB_MODE_ASYNC);
+    }
+
+    fn ungrab_keyboard(&self){
+        self.window.ungrab_keyboard();
+    }
+
+    /// Helper function for creating `Rect`s from pairs of tuples.
     #[inline]
-    fn to_rect(start: (i32, i32), end: (i32, i32)) -> Rect{
-        Rect{
-            x: i32::min(start.0, end.0),
+    fn to_rect(start: (i32, i32), end: (i32, i32)) -> Rect {
+        Rect {
+            x: i32::min(start.0, end.0), 
             y: i32::min(start.1, end.1),
             width: (end.0 - start.0).abs() as u32,
             height: (end.1 - start.1).abs() as u32,
@@ -139,10 +149,9 @@ impl<'a> Region<'a> {
     /// 0x0px was selected.
     pub fn show(&mut self) -> Option<Rect> {
         self.display.map_window(&self.window);
+        self.grab_keyboard();
         self.display.sync(false);
-        self.window.focus(xlib::REVERT_TO_POINTER_ROOT);
 
-        println!("{}", self.has_compositor());
 
         let mut start_pos = (0, 0);
         let mut end_pos;
@@ -169,7 +178,7 @@ impl<'a> Region<'a> {
                         end_pos = self.display.query_pointer(&self.display.default_window());
                         let rect = Self::to_rect(start_pos, end_pos);
 
-                        if rect.width == 0 || rect.height == 0{
+                        if rect.width == 0 || rect.height == 0 {
                             break;
                         }
                         return Some(rect);
@@ -205,7 +214,8 @@ impl<'a> Region<'a> {
 impl<'a> Drop for Region<'a> {
     fn drop(&mut self) {
         if self.active {
-            self.window.clear();
+            self.ungrab_keyboard();
+            self.ungrab_pointer();
             self.window.destroy();
         }
     }
