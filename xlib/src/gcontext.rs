@@ -26,12 +26,7 @@ pub struct GContext<'a> {
 }
 
 impl<'a> GContext<'a> {
-    pub fn new(
-        display: &'a Display,
-        drawable: &Window,
-        value_mask: u64,
-        values: GCValues,
-    ) -> Self {
+    pub fn new(display: &'a Display, drawable: &Window, value_mask: u64, values: GCValues) -> Self {
         let gc = unsafe {
             xlib::XCreateGC(
                 display.as_raw(),
@@ -43,8 +38,14 @@ impl<'a> GContext<'a> {
         Self { display, inner: gc }
     }
 
-    pub fn set_foreground(&self, color: u64){
-        unsafe{
+    pub fn set_background(&self, color: u64) {
+        unsafe {
+            xlib::XSetBackground(self.display.as_raw(), self.inner, color);
+        }
+    }
+
+    pub fn set_foreground(&self, color: u64) {
+        unsafe {
             xlib::XSetForeground(self.display.as_raw(), self.inner, color);
         }
     }

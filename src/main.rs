@@ -20,6 +20,16 @@ use std::time::Duration;
 use std::{env, thread};
 use xlib::Display;
 
+/// Checks if a compositor is present
+fn has_compositor(display: &Display) -> bool {
+    unsafe {
+        let c_str = std::ffi::CString::new("_NET_WM_CM_S0").unwrap();
+        let test = x11::xlib::XInternAtom(display.as_raw(), c_str.as_ptr(), 0);
+        x11::xlib::XGetSelectionOwner(display.as_raw(), test) != 0
+    }
+}
+
+/// Sleeps for the specified duration before continuing execution
 fn delay(matches: Option<&str>) {
     if let Some(dur) = matches {
         let secs = dur.parse().expect("Invalid duration");
@@ -28,6 +38,7 @@ fn delay(matches: Option<&str>) {
     }
 }
 
+/// Parses the given directory and generates the filename of the screenshot
 fn filename(matches: Option<&str>) -> Option<PathBuf> {
     let time = Local::now()
         .format("Screenshot %Y-%m-%d %H-%M-%S.png")
@@ -40,7 +51,20 @@ fn filename(matches: Option<&str>) -> Option<PathBuf> {
     Some(path)
 }
 
-fn main(){
+/// Display the region capture window
+fn region(display: &Display, path: PathBuf) {
+    if !has_compositor(display) {
+        panic!("A compositor is required for region capture!");
+    }
+    let region = Region::new(&display).show();
+    if let Some(x) = region {
+        Screenshot::with_rect(&display, &display.default_window(), x)
+            .save(path)
+            .unwrap();
+    }
+}
+
+fn main() {
     let matches = App::new("xscreen")
         .version("0.1")
         .author("Bruflot <git@bruflot.com>")
@@ -83,17 +107,11 @@ fn main(){
     delay(matches.value_of("delay"));
     let path = filename(matches.value_of("output")).expect("Invalid file path");
     let display = Display::connect(None).expect("Failed to connect to X");
-    let root = display.default_window();
 
     if matches.is_present("window") {
         unimplemented!()
     } else if matches.is_present("region") {
-        let region = Region::new(&display).show();
-        if let Some(x) = region {
-            Screenshot::with_rect(&display, &root, x)
-                .save(path)
-                .unwrap();
-        }
+        region(&display, path);
     } else {
         Screenshot::fullscreen(&display).save(path).unwrap();
     }

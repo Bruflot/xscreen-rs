@@ -6,6 +6,25 @@ use std::ptr;
 use x11::xlib;
 
 #[derive(Debug)]
+pub struct CursorInfo {
+    pub parent: Option<Window>,
+    pub child: Option<Window>,
+    pub x: i32,
+    pub y: i32,
+}
+
+impl Default for CursorInfo {
+    fn default() -> Self {
+        Self {
+            parent: None,
+            child: None,
+            x: 0,
+            y: 0,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Display {
     inner: XDisplay,
 }
@@ -36,6 +55,28 @@ impl Display {
 
     pub fn create_font_cursor(&self, cursor: u32) -> u64 {
         unsafe { xlib::XCreateFontCursor(self.inner, cursor) }
+    }
+
+    pub fn clear_area<T: Into<i32>>(
+        &self,
+        window: &Window,
+        x: i32,
+        y: i32,
+        width: u32,
+        height: u32,
+        exposures: T,
+    ) {
+        unsafe {
+            xlib::XClearArea(
+                self.inner,
+                window.as_raw(),
+                x,
+                y,
+                width,
+                height,
+                exposures.into(),
+            );
+        }
     }
 
     pub fn define_cursor(&self, window: &Window, cursor: u64) {
@@ -164,7 +205,7 @@ impl Display {
         }
     }
 
-    pub fn query_pointer(&self, window: &Window) -> (i32, i32) {
+    pub fn query_pointer(&self, window: &Window) -> CursorInfo {
         let mut root_window: XWindow = 0;
         let mut child_window: XWindow = 0;
         let mut root_x = 0;
@@ -187,7 +228,12 @@ impl Display {
             );
         }
 
-        (root_x, root_y)
+        CursorInfo {
+            parent: Some(self.default_window()),
+            child: Some(Window::from_raw(&self, child_window)),
+            x: root_x,
+            y: root_y,
+        }
     }
 
     pub fn draw_rectangle<T: Into<u64>>(&self, drawable: T, gc: &GContext, rect: Rect) {

@@ -17,7 +17,7 @@ pub(crate) type XImage = *mut xlib::XImage;
 pub(crate) type XWindow = xlib::Window;
 
 pub use consts::*;
-pub use display::Display;
+pub use display::{CursorInfo, Display};
 pub use events::{Event, EventKind};
 pub use gcontext::{GCValues, GContext};
 pub use image::{Image, Visual, VisualInfo};

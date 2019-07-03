@@ -1,15 +1,19 @@
-use xlib::{Display, EventKind, GCValues, GContext, Rect, SetWindowAttributes, VisualInfo, Window};
+use xlib::{
+    CursorInfo, Display, EventKind, GCValues, GContext, Rect, SetWindowAttributes, VisualInfo,
+    Window,
+};
 
 // const SPACE: char = '\u{0020}';
 const ESCAPE: char = '\u{FF1B}';
 const KEY_Q: char = 'q';
 const MOUSE_LEFT: u32 = 1;
 const MOUSE_RIGHT: u32 = 3;
-const BACKGROUND: u64 = 0x6600_0000;
-const FOREGROUND: u64 = 0x73284;
+const BACKGROUND: u64 = 0x82000000;
+const FOREGROUND: u64 = 0; // 0x73284;
 
 pub struct Region<'a> {
     display: &'a Display,
+    root: Window,
     window: Window,
     gc: GContext<'a>,
     active: bool,
@@ -24,15 +28,13 @@ impl<'a> Region<'a> {
         window
     }
 
-    // fn create_compositor_window(display: &'a Display) -> Self{
-    // }
-
     /// Creates the parent window that covers the entire screen. This is a pop-up window that
     /// will not be manged by your window manager.
     fn create_parent(display: &'a Display) -> Self {
         let width = display.get_width(0) as u32;
         let height = display.get_height(0) as u32;
         let visual = VisualInfo::from(display, 0, 32, xlib::TRUE_COLOR);
+        let root = display.default_window();
         let rect = Rect {
             x: 0,
             y: 0,
@@ -42,13 +44,9 @@ impl<'a> Region<'a> {
 
         let mut attr = SetWindowAttributes::default();
         attr.0.background_pixel = BACKGROUND;
-        attr.0.border_pixel = 0;
+        attr.0.border_pixel = 2;
         attr.0.cursor = display.create_font_cursor(34);
-        attr.0.colormap = display.create_colormap(
-            &display.default_window(),
-            visual.as_raw().visual,
-            xlib::ALLOC_NONE,
-        );
+        attr.0.colormap = display.create_colormap(&root, visual.as_raw().visual, xlib::ALLOC_NONE);
         attr.0.override_redirect = 1;
         attr.0.border_pixel = 16_000_000;
 
@@ -65,31 +63,25 @@ impl<'a> Region<'a> {
                 | xlib::CW_DONT_PROPAGATE,
             &mut attr,
         );
-        
+
         let values = GCValues::default();
         let gc = GContext::new(&display, &window, 0, values);
         gc.set_foreground(FOREGROUND);
 
         Self {
             display,
+            root,
             window,
             gc,
             active: true,
         }
     }
 
-    /// Checks if a compositor is present.
-    pub fn has_compositor(&self) -> bool {
-        unsafe {
-            let c_str = std::ffi::CString::new("_NET_WM_CM_S0").unwrap();
-            let test = x11::xlib::XInternAtom(self.display.as_raw(), c_str.as_ptr(), 0);
-            x11::xlib::XGetSelectionOwner(self.display.as_raw(), test) != 0
-        }
-    }
-
     /// Registers the key- and button-related events we want to receive,
     /// along with any display changes.
     fn grab_events(&mut self) {
+        self.display.grab_key(&self.window, ESCAPE, None);
+        self.display.grab_key(&self.window, KEY_Q, None);
         self.display.grab_button(&self.window, MOUSE_LEFT, None);
         self.display.grab_button(&self.window, MOUSE_RIGHT, None);
         self.display
@@ -99,7 +91,8 @@ impl<'a> Region<'a> {
     /// Draws the rectangle that represents the highlighted region.
     /// Only used for region capture.
     fn draw_rect(&self, rect: Rect) {
-        self.display.draw_rectangle(self.window.as_raw(), &self.gc, rect);
+        self.display
+            .draw_rectangle(self.window.as_raw(), &self.gc, rect);
     }
 
     /// Grabs the pointer - this is necessary to receive motion events while
@@ -122,22 +115,25 @@ impl<'a> Region<'a> {
         self.display.ungrab_pointer();
     }
 
-    fn grab_keyboard(&self){
-        self.window.grab_keyboard(false, xlib::GRAB_MODE_ASYNC, xlib::GRAB_MODE_ASYNC);
+    fn grab_keyboard(&self) {
+        let ret = self
+            .window
+            .grab_keyboard(false, xlib::GRAB_MODE_ASYNC, xlib::GRAB_MODE_ASYNC);
+        println!("{}", ret);
     }
 
-    fn ungrab_keyboard(&self){
+    fn ungrab_keyboard(&self) {
         self.window.ungrab_keyboard();
     }
 
-    /// Helper function for creating `Rect`s from pairs of tuples.
+    /// Helper function for extracting the coordinates from `CursorInfo` into a `Rect`.
     #[inline]
-    fn to_rect(start: (i32, i32), end: (i32, i32)) -> Rect {
+    fn to_rect(start: &CursorInfo, end: &CursorInfo) -> Rect {
         Rect {
-            x: i32::min(start.0, end.0), 
-            y: i32::min(start.1, end.1),
-            width: (end.0 - start.0).abs() as u32,
-            height: (end.1 - start.1).abs() as u32,
+            x: i32::min(start.x, end.x),
+            y: i32::min(start.y, end.y),
+            width: (end.x - start.x).abs() as u32,
+            height: (end.y - start.y).abs() as u32,
         }
     }
 
@@ -150,10 +146,8 @@ impl<'a> Region<'a> {
     pub fn show(&mut self) -> Option<Rect> {
         self.display.map_window(&self.window);
         self.grab_keyboard();
-        self.display.sync(false);
 
-
-        let mut start_pos = (0, 0);
+        let mut start_pos = CursorInfo::default();
         let mut end_pos;
 
         loop {
@@ -164,7 +158,7 @@ impl<'a> Region<'a> {
                 EventKind::ButtonPress(event) => match event.button {
                     MOUSE_LEFT => {
                         self.grab_pointer();
-                        start_pos = self.display.query_pointer(&self.display.default_window());
+                        start_pos = self.display.query_pointer(&self.root);
                     }
                     MOUSE_RIGHT => break,
                     _ => (),
@@ -175,8 +169,8 @@ impl<'a> Region<'a> {
                 EventKind::ButtonRelease(event) => {
                     if event.button == MOUSE_LEFT {
                         self.ungrab_pointer();
-                        end_pos = self.display.query_pointer(&self.display.default_window());
-                        let rect = Self::to_rect(start_pos, end_pos);
+                        end_pos = self.display.query_pointer(&self.root);
+                        let rect = Self::to_rect(&start_pos, &end_pos);
 
                         if rect.width == 0 || rect.height == 0 {
                             break;
@@ -188,9 +182,9 @@ impl<'a> Region<'a> {
                 // The mouse moved while the primary button was being held.
                 // Re-draw the rectangle and update the end position.
                 EventKind::Motion(_) => {
-                    end_pos = self.display.query_pointer(&self.display.default_window());
+                    end_pos = self.display.query_pointer(&self.root);
+                    let rect = Self::to_rect(&start_pos, &end_pos);
                     self.window.clear();
-                    let rect = Self::to_rect(start_pos, end_pos);
                     self.draw_rect(rect);
                 }
 
