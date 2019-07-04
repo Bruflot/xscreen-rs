@@ -86,7 +86,7 @@ impl Window {
         }
     }
 
-    pub fn as_raw(&self) -> XWindow {
+    pub const fn as_raw(&self) -> XWindow {
         self._inner
     }
 
@@ -126,8 +126,36 @@ impl Window {
         }
     }
 
-    pub fn get_bounds(&self) -> Rect {
-        self.bounds
+    // XGetGeometry
+    pub fn get_rect(&self) -> Rect {
+        let mut window = 0;
+        let mut x = 0;
+        let mut y = 0;
+        let mut width = 0;
+        let mut height = 0;
+        let mut border_width = 0;
+        let mut depth_return = 0;
+
+        unsafe {
+            xlib::XGetGeometry(
+                self.display,
+                self._inner,
+                &mut window,
+                &mut x,
+                &mut y,
+                &mut width,
+                &mut height,
+                &mut border_width,
+                &mut depth_return,
+            );
+        }
+
+        Rect {
+            x,
+            y,
+            width,
+            height,
+        }
     }
 
     pub fn move_resize(&mut self, bounds: Rect) {

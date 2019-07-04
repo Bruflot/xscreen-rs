@@ -4,17 +4,15 @@ use xlib::{
 };
 
 // const SPACE: char = '\u{0020}';
-const ESCAPE: char = '\u{FF1B}';
-const KEY_Q: char = 'q';
 const MOUSE_LEFT: u32 = 1;
 const MOUSE_RIGHT: u32 = 3;
 const BACKGROUND: u64 = 0x82000000;
-const FOREGROUND: u64 = 0; // 0x73284;
+const FOREGROUND: u64 = 0x73284;
 
 pub struct Region<'a> {
     display: &'a Display,
     root: Window,
-    window: Window,
+    overlay: Window,
     gc: GContext<'a>,
     active: bool,
 }
@@ -50,7 +48,7 @@ impl<'a> Region<'a> {
         attr.0.override_redirect = 1;
         attr.0.border_pixel = 16_000_000;
 
-        let window = Window::new(
+        let overlay = Window::new(
             &display,
             rect,
             32,
@@ -65,13 +63,13 @@ impl<'a> Region<'a> {
         );
 
         let values = GCValues::default();
-        let gc = GContext::new(&display, &window, 0, values);
+        let gc = GContext::new(&display, &overlay, 0, values);
         gc.set_foreground(FOREGROUND);
 
         Self {
             display,
             root,
-            window,
+            overlay,
             gc,
             active: true,
         }
@@ -80,28 +78,26 @@ impl<'a> Region<'a> {
     /// Registers the key- and button-related events we want to receive,
     /// along with any display changes.
     fn grab_events(&mut self) {
-        self.display.grab_key(&self.window, ESCAPE, None);
-        self.display.grab_key(&self.window, KEY_Q, None);
-        self.display.grab_button(&self.window, MOUSE_LEFT, None);
-        self.display.grab_button(&self.window, MOUSE_RIGHT, None);
+        self.display.grab_button(&self.overlay, MOUSE_LEFT, None);
+        self.display.grab_button(&self.overlay, MOUSE_RIGHT, None);
         self.display
-            .select_input(&self.window, xlib::STRUCTURE_NOTIFY_MASK);
+            .select_input(&self.overlay, xlib::STRUCTURE_NOTIFY_MASK);
     }
 
     /// Draws the rectangle that represents the highlighted region.
     /// Only used for region capture.
     fn draw_rect(&self, rect: Rect) {
         self.display
-            .draw_rectangle(self.window.as_raw(), &self.gc, rect);
+            .draw_rectangle(self.overlay.as_raw(), &self.gc, &rect);
     }
 
     /// Grabs the pointer - this is necessary to receive motion events while
     /// any of the mouse buttons are being held down.
     fn grab_pointer(&self) {
         self.display.grab_pointer(
-            &self.window,
+            &self.overlay,
             true,
-            xlib::BUTTON1_MOTION_MASK | xlib::BUTTON_RELEASE_MASK,
+            xlib::BUTTON1_MOTION_MASK | xlib::BUTTON_RELEASE_MASK | xlib::BUTTON_PRESS_MASK,
             xlib::GRAB_MODE_ASYNC,
             xlib::GRAB_MODE_ASYNC,
             None,
@@ -117,13 +113,12 @@ impl<'a> Region<'a> {
 
     fn grab_keyboard(&self) {
         let ret = self
-            .window
-            .grab_keyboard(false, xlib::GRAB_MODE_ASYNC, xlib::GRAB_MODE_ASYNC);
-        println!("{}", ret);
+            .overlay
+            .grab_keyboard(true, xlib::GRAB_MODE_ASYNC, xlib::GRAB_MODE_ASYNC);
     }
 
     fn ungrab_keyboard(&self) {
-        self.window.ungrab_keyboard();
+        self.overlay.ungrab_keyboard();
     }
 
     /// Helper function for extracting the coordinates from `CursorInfo` into a `Rect`.
@@ -144,11 +139,11 @@ impl<'a> Region<'a> {
     /// May return `None` if the region capture was cancelled or a region of
     /// 0x0px was selected.
     pub fn show(&mut self) -> Option<Rect> {
-        self.display.map_window(&self.window);
+        self.display.map_window(&self.overlay);
         self.grab_keyboard();
-
+        self.grab_pointer();
         let mut start_pos = CursorInfo::default();
-        let mut end_pos;
+        let mut end_pos = CursorInfo::default();
 
         loop {
             let event = self.display.next_event();
@@ -156,10 +151,7 @@ impl<'a> Region<'a> {
             match event.get_kind() {
                 // Either the primary or secondary mouse button was pressed
                 EventKind::ButtonPress(event) => match event.button {
-                    MOUSE_LEFT => {
-                        self.grab_pointer();
-                        start_pos = self.display.query_pointer(&self.root);
-                    }
+                    MOUSE_LEFT => start_pos = self.display.query_pointer(&self.root),
                     MOUSE_RIGHT => break,
                     _ => (),
                 },
@@ -168,8 +160,6 @@ impl<'a> Region<'a> {
                 // and return a `Rect` structure containing them.
                 EventKind::ButtonRelease(event) => {
                     if event.button == MOUSE_LEFT {
-                        self.ungrab_pointer();
-                        end_pos = self.display.query_pointer(&self.root);
                         let rect = Self::to_rect(&start_pos, &end_pos);
 
                         if rect.width == 0 || rect.height == 0 {
@@ -184,7 +174,7 @@ impl<'a> Region<'a> {
                 EventKind::Motion(_) => {
                     end_pos = self.display.query_pointer(&self.root);
                     let rect = Self::to_rect(&start_pos, &end_pos);
-                    self.window.clear();
+                    self.overlay.clear();
                     self.draw_rect(rect);
                 }
 
@@ -200,6 +190,7 @@ impl<'a> Region<'a> {
             }
         }
 
+        // todo: proper error (operation aborted)
         None
     }
 }
@@ -210,7 +201,7 @@ impl<'a> Drop for Region<'a> {
         if self.active {
             self.ungrab_keyboard();
             self.ungrab_pointer();
-            self.window.destroy();
+            self.overlay.destroy();
         }
     }
 }

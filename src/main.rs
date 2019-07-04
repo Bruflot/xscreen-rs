@@ -10,26 +10,24 @@ extern crate xlib;
 
 mod region;
 mod screenshot;
+mod windowcapture;
 
 use chrono::Local;
 use clap::{App, Arg};
 use region::Region;
 use screenshot::Screenshot;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
-use std::{env, thread};
+use std::{env, io, thread};
 use xlib::Display;
 
 /// Checks if a compositor is present
 fn has_compositor(display: &Display) -> bool {
-    unsafe {
-        let c_str = std::ffi::CString::new("_NET_WM_CM_S0").unwrap();
-        let test = x11::xlib::XInternAtom(display.as_raw(), c_str.as_ptr(), 0);
-        x11::xlib::XGetSelectionOwner(display.as_raw(), test) != 0
-    }
+    let atom = display.intern_atom("_NET_WM_CM_S0", false);
+    display.get_selection_owner(atom) != 0
 }
 
-/// Sleeps for the specified duration before continuing execution
+/// Sleeps for the specified duration before resuming execution
 fn delay(matches: Option<&str>) {
     if let Some(dur) = matches {
         let secs = dur.parse().expect("Invalid duration");
@@ -38,7 +36,7 @@ fn delay(matches: Option<&str>) {
     }
 }
 
-/// Parses the given directory and generates the filename of the screenshot
+/// Parses the given path and generates the filename of the screenshot
 fn filename(matches: Option<&str>) -> Option<PathBuf> {
     let time = Local::now()
         .format("Screenshot %Y-%m-%d %H-%M-%S.png")
@@ -51,16 +49,16 @@ fn filename(matches: Option<&str>) -> Option<PathBuf> {
     Some(path)
 }
 
-/// Display the region capture window
-fn region(display: &Display, path: PathBuf) {
+/// Displays the region capture window
+fn region<P: AsRef<Path>>(display: &Display, path: P) -> io::Result<()> {
     if !has_compositor(display) {
-        panic!("A compositor is required for region capture!");
+        panic!("A compositor is required for region capture");
     }
     let region = Region::new(&display).show();
     if let Some(x) = region {
-        Screenshot::with_rect(&display, &display.default_window(), x)
-            .save(path)
-            .unwrap();
+        Screenshot::with_rect(&display, &display.default_window(), x).save(path)
+    } else {
+        Err(io::Error::last_os_error())
     }
 }
 
@@ -108,11 +106,20 @@ fn main() {
     let path = filename(matches.value_of("output")).expect("Invalid file path");
     let display = Display::connect(None).expect("Failed to connect to X");
 
-    if matches.is_present("window") {
-        unimplemented!()
+    let res = if matches.is_present("window") {
+        unimplemented!();
     } else if matches.is_present("region") {
-        region(&display, path);
+        region(&display, &path)
     } else {
-        Screenshot::fullscreen(&display).save(path).unwrap();
+        Screenshot::fullscreen(&display).save(&path)
+    };
+
+    // todo: propagate all errors here
+    match res {
+        Ok(_) => println!(
+            "   \x1b[1;32mSuccess:\x1b[0m Saved to {}",
+            path.to_string_lossy()
+        ),
+        Err(e) => println!("   \x1b[1;31mError:\x1b[0m {}", e),
     }
 }

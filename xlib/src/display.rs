@@ -25,6 +25,9 @@ impl Default for CursorInfo {
 }
 
 #[derive(Debug)]
+pub struct Atom(pub u64);
+
+#[derive(Debug)]
 pub struct Display {
     inner: XDisplay,
 }
@@ -85,7 +88,7 @@ impl Display {
         }
     }
 
-    pub fn as_raw(&self) -> XDisplay {
+    pub const fn as_raw(&self) -> XDisplay {
         self.inner
     }
 
@@ -98,6 +101,43 @@ impl Display {
         unsafe {
             xlib::XFlush(self.inner);
         }
+    }
+
+    // XTranslateCoordinates
+    pub fn translate_coordinates(&self, window: &Window, x: i32, y: i32) -> (i32, i32) {
+        let mut ret_x = 0;
+        let mut ret_y = 0;
+        let mut ret_child = 0;
+
+        unsafe {
+            xlib::XTranslateCoordinates(
+                self.inner,
+                window.as_raw(),
+                self.default_window().as_raw(),
+                x,
+                y,
+                &mut ret_x,
+                &mut ret_y,
+                &mut ret_child,
+            );
+        }
+
+        (ret_x, ret_y)
+    }
+
+    // XInternAtom
+    pub fn intern_atom<S: AsRef<str>, B: Into<i32>>(
+        &self,
+        atom_name: S,
+        only_if_exists: B,
+    ) -> Atom {
+        let c_str = CString::new(atom_name.as_ref()).unwrap();
+        Atom(unsafe { xlib::XInternAtom(self.inner, c_str.as_ptr(), only_if_exists.into()) })
+    }
+
+    // XGetSelectionOwner
+    pub fn get_selection_owner(&self, atom: Atom) -> u64 {
+        unsafe { xlib::XGetSelectionOwner(self.inner, atom.0) }
     }
 
     // XSync
@@ -236,7 +276,7 @@ impl Display {
         }
     }
 
-    pub fn draw_rectangle<T: Into<u64>>(&self, drawable: T, gc: &GContext, rect: Rect) {
+    pub fn draw_rectangle<T: Into<u64>>(&self, drawable: T, gc: &GContext, rect: &Rect) {
         unsafe {
             xlib::XFillRectangle(
                 self.inner,

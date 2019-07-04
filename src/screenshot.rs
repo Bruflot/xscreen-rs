@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 extern crate image;
 extern crate xlib;
 
@@ -35,8 +36,17 @@ impl Screenshot {
     }
 
     pub fn window(display: &Display, window: &Window) -> Self {
-        let rect = window.get_bounds();
-        Self::with_rect(display, window, rect)
+        let rect = window.get_rect();
+        Self::with_rect(
+            display,
+            window,
+            Rect {
+                x: 0,
+                y: 0,
+                width: rect.width,
+                height: rect.height,
+            },
+        )
     }
 
     pub fn with_rect(display: &Display, window: &Window, rect: Rect) -> Self {
