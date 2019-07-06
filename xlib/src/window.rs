@@ -16,7 +16,7 @@ impl Default for SetWindowAttributes {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Window {
     display: XDisplay,
     bounds: Rect,

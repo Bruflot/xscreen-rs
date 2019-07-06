@@ -6,8 +6,8 @@ use xlib::{
 // const SPACE: char = '\u{0020}';
 const MOUSE_LEFT: u32 = 1;
 const MOUSE_RIGHT: u32 = 3;
-const BACKGROUND: u64 = 0x82000000;
-const FOREGROUND: u64 = 0x73284;
+const BACKGROUND: u64 = 0; // 0x82000000;
+const FOREGROUND: u64 = 0x87000000; // 0x73284;
 
 pub struct Region<'a> {
     display: &'a Display,
@@ -42,7 +42,7 @@ impl<'a> Region<'a> {
 
         let mut attr = SetWindowAttributes::default();
         attr.0.background_pixel = BACKGROUND;
-        attr.0.border_pixel = 2;
+        attr.0.border_pixel = 0;
         attr.0.cursor = display.create_font_cursor(34);
         attr.0.colormap = display.create_colormap(&root, visual.as_raw().visual, xlib::ALLOC_NONE);
         attr.0.override_redirect = 1;
@@ -111,10 +111,15 @@ impl<'a> Region<'a> {
         self.display.ungrab_pointer();
     }
 
-    fn grab_keyboard(&self) {
+    fn grab_keyboard(&self) -> Option<()> {
         let ret = self
             .overlay
             .grab_keyboard(true, xlib::GRAB_MODE_ASYNC, xlib::GRAB_MODE_ASYNC);
+
+        if ret == 0 {
+            return Some(());
+        }
+        None
     }
 
     fn ungrab_keyboard(&self) {
@@ -179,7 +184,18 @@ impl<'a> Region<'a> {
                 }
 
                 // A key event that we monitor was triggered.
-                EventKind::KeyPress(_) => break,
+                EventKind::KeyPress(event) => match event.keycode {
+                    // space
+                    65 => {
+                        // todo: launch window capture
+                    }
+
+                    // escape, q
+                    9 | 24 => break,
+
+                    // ignore the rest
+                    _ => (),
+                },
 
                 // The window was destroyed by external means.
                 EventKind::DestroyWindow(_) => {
@@ -190,7 +206,6 @@ impl<'a> Region<'a> {
             }
         }
 
-        // todo: proper error (operation aborted)
         None
     }
 }
@@ -202,6 +217,7 @@ impl<'a> Drop for Region<'a> {
             self.ungrab_keyboard();
             self.ungrab_pointer();
             self.overlay.destroy();
+            self.display.flush();
         }
     }
 }

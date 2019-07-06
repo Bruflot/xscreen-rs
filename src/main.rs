@@ -19,7 +19,17 @@ use screenshot::Screenshot;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use std::{env, io, thread};
+use windowcapture::WindowCapture;
 use xlib::Display;
+
+// todo: remove copy/clone from window
+// todo: propagate errors to main
+// todo: draw overlay underneath floating windows
+// todo: make the screenshot appear in recent
+// ? be able to select root window for window capture? (excl. docks)
+// ? enter in region capture = fullscreen (auto, no interaction)
+// ? should docks be considered for window capture
+// ? use bin folder for other executables (e.g. with menu thingy from macOS)
 
 /// Checks if a compositor is present
 fn has_compositor(display: &Display) -> bool {
@@ -56,7 +66,21 @@ fn region<P: AsRef<Path>>(display: &Display, path: P) -> io::Result<()> {
     }
     let region = Region::new(&display).show();
     if let Some(x) = region {
+        thread::sleep_ms(2);
         Screenshot::with_rect(&display, &display.default_window(), x).save(path)
+    } else {
+        Err(io::Error::last_os_error())
+    }
+}
+
+fn window<P: AsRef<Path>>(display: &Display, path: P) -> io::Result<()> {
+    if !has_compositor(display) {
+        panic!("A compositor is required for region capture");
+    }
+    let window = WindowCapture::new(&display).show();
+    if let Some(w) = window {
+        thread::sleep_ms(2);
+        Screenshot::window(&display, &w).save(path)
     } else {
         Err(io::Error::last_os_error())
     }
@@ -107,14 +131,13 @@ fn main() {
     let display = Display::connect(None).expect("Failed to connect to X");
 
     let res = if matches.is_present("window") {
-        unimplemented!();
+        window(&display, &path)
     } else if matches.is_present("region") {
         region(&display, &path)
     } else {
         Screenshot::fullscreen(&display).save(&path)
     };
 
-    // todo: propagate all errors here
     match res {
         Ok(_) => println!(
             "   \x1b[1;32mSuccess:\x1b[0m Saved to {}",

@@ -300,7 +300,7 @@ impl Display {
         confine_to: Option<&Window>,
         cursor: u64,
         time: u64,
-    ) {
+    ) -> i32 {
         let confine_win = match confine_to {
             Some(x) => x.as_raw(),
             None => 0,
@@ -317,7 +317,7 @@ impl Display {
                 confine_win,
                 cursor,
                 time,
-            );
+            )
         }
     }
 
