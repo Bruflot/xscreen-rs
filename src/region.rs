@@ -1,3 +1,4 @@
+use std::thread;
 use xlib::{
     CursorInfo, Display, EventKind, GCValues, GContext, Rect, SetWindowAttributes, VisualInfo,
     Window,
@@ -204,6 +205,11 @@ impl<'a> Region<'a> {
                 }
                 _ => (),
             }
+
+            // Sleep for 17ms (roughly equivalent to 60fps) and discard
+            // any pending events.
+            thread::sleep_ms(17);
+            self.display.sync(true);
         }
 
         None
