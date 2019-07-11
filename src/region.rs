@@ -1,4 +1,4 @@
-use std::thread;
+use std::time::Instant;
 use xlib::{
     CursorInfo, Display, EventKind, GCValues, GContext, Rect, SetWindowAttributes, VisualInfo,
     Window,
@@ -9,6 +9,7 @@ const MOUSE_LEFT: u32 = 1;
 const MOUSE_RIGHT: u32 = 3;
 const BACKGROUND: u64 = 0; // 0x82000000;
 const FOREGROUND: u64 = 0x87000000; // 0x73284;
+const REFRESH_RATE: u128 = 1000/60;
 
 pub struct Region<'a> {
     display: &'a Display,
@@ -150,6 +151,7 @@ impl<'a> Region<'a> {
         self.grab_pointer();
         let mut start_pos = CursorInfo::default();
         let mut end_pos = CursorInfo::default();
+        let mut time = Instant::now();
 
         loop {
             let event = self.display.next_event();
@@ -178,10 +180,14 @@ impl<'a> Region<'a> {
                 // The mouse moved while the primary button was being held.
                 // Re-draw the rectangle and update the end position.
                 EventKind::Motion(_) => {
-                    end_pos = self.display.query_pointer(&self.root);
-                    let rect = Self::to_rect(&start_pos, &end_pos);
-                    self.overlay.clear();
-                    self.draw_rect(rect);
+                	if time.elapsed().as_millis() > REFRESH_RATE{
+                		end_pos = self.display.query_pointer(&self.root);
+                		let rect = Self::to_rect(&start_pos, &end_pos);
+                		self.overlay.clear();
+        		        self.draw_rect(rect);
+        		        time = Instant::now();
+                	}
+                    
                 }
 
                 // A key event that we monitor was triggered.
@@ -205,11 +211,6 @@ impl<'a> Region<'a> {
                 }
                 _ => (),
             }
-
-            // Sleep for 17ms (roughly equivalent to 60fps) and discard
-            // any pending events.
-            thread::sleep_ms(17);
-            self.display.sync(true);
         }
 
         None

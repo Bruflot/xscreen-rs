@@ -1,4 +1,4 @@
-use std::thread;
+use std::time::Instant;
 use xlib::{Display, EventKind, GCValues, GContext, Rect, SetWindowAttributes, VisualInfo, Window};
 
 const MOUSE_LEFT: u32 = 1;
@@ -7,6 +7,9 @@ const MOUSE_RIGHT: u32 = 3;
 // alpha-premultiplied colors
 const BACKGROUND: u64 = 0; //0x82000000;
 const FOREGROUND: u64 = 0x82145482; // 0x73284;
+
+// refresh rate for drawing the highlighted area
+const REFRESH_RATE: u128 = 1000/60;
 
 pub struct WindowCapture<'a> {
     display: &'a Display,
@@ -291,6 +294,7 @@ impl<'a> WindowCapture<'a> {
         self.grab_keyboard();
         self.grab_pointer();
         let mut window = self.display.default_window();
+        let mut time = Instant::now();
 
         loop {
             let event = self.display.next_event();
@@ -298,19 +302,23 @@ impl<'a> WindowCapture<'a> {
             match event.get_kind() {
                 // Cursor moved; check its position and redraw the rect if necessary.
                 EventKind::Motion(cursor) => {
-                    self.overlay.clear();
+                    if time.elapsed().as_millis() > REFRESH_RATE{
+                        self.overlay.clear();
 
-                    for (w, r) in &rects {
-                        if cursor.x > r.x
-                            && cursor.x < (r.x + r.width as i32)
-                            && cursor.y > r.y
-                            && cursor.y < (r.y + r.height as i32)
-                        {
-                            window = **w;
-                            self.draw_rect(&r);
-                            break;
+                        for (w, r) in &rects {
+                            if cursor.x > r.x
+                                && cursor.x < (r.x + r.width as i32)
+                                && cursor.y > r.y
+                                && cursor.y < (r.y + r.height as i32)
+                            {
+                                window = **w;
+                                self.draw_rect(&r);
+                                break;
+                            }
                         }
-                    }
+
+                        time = Instant::now();
+                    }                    
                 }
 
                 // A mouse button was clicked - either abort or return a Rect.
@@ -330,11 +338,6 @@ impl<'a> WindowCapture<'a> {
                 }
                 _ => (),
             }
-
-            // Sleep for 17ms (roughly equivalent to 60fps) and discard
-            // any pending events.
-            thread::sleep_ms(17);
-            self.display.sync(true);
         }
 
         None
