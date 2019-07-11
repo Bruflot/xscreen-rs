@@ -90,7 +90,7 @@ impl<'a> Region<'a> {
     /// Only used for region capture.
     fn draw_rect(&self, rect: Rect) {
         self.display
-            .draw_rectangle(self.overlay.as_raw(), &self.gc, &rect);
+            .fill_rectangle(self.overlay.as_raw(), &self.gc, &rect);
     }
 
     /// Grabs the pointer - this is necessary to receive motion events while

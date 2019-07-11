@@ -19,7 +19,7 @@ impl Image {
         width: u32,
         height: u32,
         format: i32,
-    ) -> Self {
+    ) -> Option<Self> {
         unsafe {
             let img = xlib::XGetImage(
                 display.as_raw(),
@@ -32,11 +32,15 @@ impl Image {
                 format,
             );
 
-            Self {
+            if img.is_null(){
+                return None;
+            }
+
+            Some(Self {
                 inner: img,
                 width,
                 height,
-            }
+            })
         }
     }
 

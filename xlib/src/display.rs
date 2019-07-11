@@ -276,7 +276,7 @@ impl Display {
         }
     }
 
-    pub fn draw_rectangle<T: Into<u64>>(&self, drawable: T, gc: &GContext, rect: &Rect) {
+    pub fn fill_rectangle<T: Into<u64>>(&self, drawable: T, gc: &GContext, rect: &Rect) {
         unsafe {
             xlib::XFillRectangle(
                 self.inner,

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 extern crate image;
 extern crate xlib;
 
@@ -17,9 +16,8 @@ pub struct Screenshot {
     height: u32,
 }
 
-// ? VisualInfo for masks
 impl Screenshot {
-    pub fn fullscreen(display: &Display) -> Self {
+    pub fn fullscreen(display: &Display) -> Option<Self> {
         let root = display.default_window();
         let width = display.get_width(0) as u32;
         let height = display.get_height(0) as u32;
@@ -35,7 +33,7 @@ impl Screenshot {
         )
     }
 
-    pub fn window(display: &Display, window: &Window) -> Self {
+    pub fn window(display: &Display, window: &Window) -> Option<Self> {
         let rect = window.get_rect();
         Self::with_rect(
             display,
@@ -49,8 +47,8 @@ impl Screenshot {
         )
     }
 
-    pub fn with_rect(display: &Display, window: &Window, rect: Rect) -> Self {
-        Self {
+    pub fn with_rect(display: &Display, window: &Window, rect: Rect) -> Option<Self> {
+        Some(Self {
             data: Image::get_image(
                 &display,
                 &window,
@@ -59,10 +57,10 @@ impl Screenshot {
                 rect.width,
                 rect.height,
                 xlib::Z_PIXMAP,
-            ),
+            )?,
             width: rect.width,
             height: rect.height,
-        }
+        })
     }
 
     #[inline]

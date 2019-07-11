@@ -2,6 +2,9 @@
 // for Unix environments. AFAIK it was deprecated because the functionality
 // in Windows was not what you'd expect.
 
+// The `windowcapture` and `region` modules will soon be rewritten as they
+// share a lot of their functionality.
+
 #![allow(deprecated)]
 extern crate chrono;
 extern crate clap;
@@ -16,20 +19,11 @@ use chrono::Local;
 use clap::{App, Arg};
 use region::Region;
 use screenshot::Screenshot;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Duration;
 use std::{env, io, thread};
 use windowcapture::WindowCapture;
 use xlib::Display;
-
-// todo: remove copy/clone from window
-// todo: propagate errors to main
-// todo: draw overlay underneath floating windows
-// todo: make the screenshot appear in recent
-// ? be able to select root window for window capture? (excl. docks)
-// ? enter in region capture = fullscreen (auto, no interaction)
-// ? should docks be considered for window capture
-// ? use bin folder for other executables (e.g. with menu thingy from macOS)
 
 /// Checks if a compositor is present
 fn has_compositor(display: &Display) -> bool {
@@ -46,57 +40,31 @@ fn delay(matches: Option<&str>) {
     }
 }
 
-/// Parses the given path and generates the filename of the screenshot
+/// Determines whether the given string is a valid filename or filepath.
+/// Generates a filename if necessary.
 fn filename(matches: Option<&str>) -> Option<PathBuf> {
-    let time = Local::now()
-        .format("Screenshot %Y-%m-%d %H-%M-%S.png")
-        .to_string();
     let mut path = match matches {
         Some(p) => PathBuf::from(p),
         None => env::home_dir()?,
     };
-    path.push(time);
+
+    if path.is_dir() {
+        let time = Local::now()
+            .format("Screenshot %Y-%m-%d %H-%M-%S.png")
+            .to_string();
+        path.push(time);
+    }
+
+    path = path.canonicalize().unwrap_or(path);
+
     Some(path)
-}
-
-/// Displays the region capture window
-fn region<P: AsRef<Path>>(display: &Display, path: P) -> io::Result<()> {
-    if !has_compositor(display) {
-        panic!("A compositor is required for region capture");
-    }
-    let region = Region::new(&display).show();
-    if let Some(x) = region {
-        thread::sleep_ms(2);
-        Screenshot::with_rect(&display, &display.default_window(), x).save(path)
-    } else {
-        Err(io::Error::last_os_error())
-    }
-}
-
-fn window<P: AsRef<Path>>(display: &Display, path: P) -> io::Result<()> {
-    if !has_compositor(display) {
-        panic!("A compositor is required for region capture");
-    }
-    let window = WindowCapture::new(&display).show();
-    if let Some(w) = window {
-        thread::sleep_ms(2);
-        Screenshot::window(&display, &w).save(path)
-    } else {
-        Err(io::Error::last_os_error())
-    }
 }
 
 fn main() {
     let matches = App::new("xscreen")
-        .version("0.1")
+        .version("0.2")
         .author("Bruflot <git@bruflot.com>")
         .about("Simple X11 screenshot utility")
-        .arg(
-            Arg::with_name("clipboard")
-                .short("c")
-                .long("clipboard")
-                .help("Copies the image directly to your clipboard")
-        )
         .arg(
             Arg::with_name("delay")
                 .short("d")
@@ -127,22 +95,35 @@ fn main() {
         .get_matches();
 
     delay(matches.value_of("delay"));
-    let path = filename(matches.value_of("output")).expect("Invalid file path");
-    let display = Display::connect(None).expect("Failed to connect to X");
 
-    let res = if matches.is_present("window") {
-        window(&display, &path)
-    } else if matches.is_present("region") {
-        region(&display, &path)
-    } else {
-        Screenshot::fullscreen(&display).save(&path)
+    let result = || -> Option<_> {
+        let path = filename(matches.value_of("output"))?;
+        let display = Display::connect(None).ok()?;
+
+        if !has_compositor(&display){
+            return None;
+        };
+
+        let screenshot = if matches.is_present("window") {
+            let window = WindowCapture::new(&display).show()?;
+            Screenshot::window(&display, &window)
+        } else if matches.is_present("region") {
+            let rect = Region::new(&display).show()?;
+            Screenshot::with_rect(&display, &display.default_window(), rect)
+        } else {
+            Screenshot::fullscreen(&display)
+        };
+
+        thread::sleep_ms(2);
+        screenshot?.save(&path).ok()?;
+        Some(path)
     };
 
-    match res {
-        Ok(_) => println!(
+    match result() {
+        Some(path) => println!(
             "   \x1b[1;32mSuccess:\x1b[0m Saved to {}",
             path.to_string_lossy()
         ),
-        Err(e) => println!("   \x1b[1;31mError:\x1b[0m {}", e),
+        None => println!("   \x1b[1;31mError:\x1b[0m {}", io::Error::last_os_error()),
     }
 }

@@ -5,8 +5,8 @@ const MOUSE_LEFT: u32 = 1;
 const MOUSE_RIGHT: u32 = 3;
 
 // alpha-premultiplied colors
-const BACKGROUND: u64 = 0; //0x82000000;
-const FOREGROUND: u64 = 0x82145482; // 0x73284;
+const BACKGROUND: u64 = 0;
+const FOREGROUND: u64 = 0x82145482;
 
 // refresh rate for drawing the highlighted area
 const REFRESH_RATE: u128 = 1000/60;
@@ -44,7 +44,6 @@ impl<'a> WindowCapture<'a> {
 
         let mut attr = SetWindowAttributes::default();
         attr.0.background_pixel = BACKGROUND;
-        attr.0.border_pixel = 2;
         attr.0.cursor = display.create_font_cursor(34);
         attr.0.colormap = display.create_colormap(&root, visual.as_raw().visual, xlib::ALLOC_NONE);
         attr.0.override_redirect = 1;
@@ -124,16 +123,18 @@ impl<'a> WindowCapture<'a> {
         None
     }
 
+    // Ungrabs the keyboard.
     fn ungrab_keyboard(&self) {
         self.overlay.ungrab_keyboard();
     }
-
-    // ? Not sure if "_NET_CURRENT_DESKTOP" can have several values
-    // ? for multi-monitor setups
-    // ? screens?
-    /// Returns the current workspace/virtual desktop.
-    fn get_workspace(&self) -> u8 {
-        let atom = self.display.intern_atom("_NET_CURRENT_DESKTOP", false);
+    
+    /// Checks if the given window is visible, i.e. whether it is shown on
+    /// any of the monitors. Returns `None` if the window is either
+    /// completely covered by another window, or if the window is visible
+    /// on an underlying workspace/virtual desktop.
+    // ? other WMs may have a different ordering of the wm_state fields(?)
+    fn is_visible(&self, window: &Window) -> bool{
+        let atom = self.display.intern_atom("WM_STATE", false);
         let mut actual_type = 0;
         let mut format = 0;
         let mut length = 0;
@@ -142,46 +143,12 @@ impl<'a> WindowCapture<'a> {
         unsafe {
             x11::xlib::XGetWindowProperty(
                 self.display.as_raw(),
-                self.root.as_raw(),
-                atom.0,
-                0, // offset
-                1, // 32-bit multiples of data to be read
-                0, // delete
-                0, // req type
-                &mut actual_type,
-                &mut format,
-                &mut length,
-                &mut bytes_after_return,
-                &mut ptr,
-            );
-
-            // if ptr.is_null(){ }
-            let workspace = *ptr;
-            x11::xlib::XFree(ptr as *mut std::ffi::c_void);
-            workspace as u8
-        }
-    }
-
-    /// Checks if the given window is "visible," i.e. whether it is shown
-    /// on the active workspace or not.
-    fn is_visible(&self, window: &Window) -> Option<u8> {
-        let atom = self.display.intern_atom("_NET_WM_DESKTOP", false);
-        let mut actual_type = 0;
-        let mut format = 0;
-        let mut bytes_after_return = 0;
-        let mut ptr = std::ptr::null_mut();
-
-        unsafe {
-            let mut length = std::mem::uninitialized();
-
-            x11::xlib::XGetWindowProperty(
-                self.display.as_raw(),
                 window.as_raw(),
                 atom.0,
-                0,    // offset
-                1024, // 32-bit multiples of data to be read
-                0,    // delete
-                0,    // req type
+                0,      // offset
+                1024,   // 32-bit multiples of data to be read
+                0,      // delete
+                0,      // req type
                 &mut actual_type,
                 &mut format,
                 &mut length,
@@ -189,11 +156,15 @@ impl<'a> WindowCapture<'a> {
                 &mut ptr,
             );
 
-            let val = if length != 0 { Some(*ptr) } else { None };
+            let slice = std::slice::from_raw_parts(ptr as *mut i8, length as usize);
+            let mut visible = false;
+
+            if length > 0{
+                visible = slice[0] == 1;
+            }
 
             x11::xlib::XFree(ptr as *mut std::ffi::c_void);
-            // println!("{}: {}", window.as_raw(), length);
-            return val;
+            visible
         }
     }
 
@@ -243,24 +214,24 @@ impl<'a> WindowCapture<'a> {
 
         for w in parents {
             for c in self.get_children(&w) {
-                windows.push(c);
+                if self.is_visible(&c) == true{
+                    windows.push(c);
+                }
             }
-            windows.push(w);
+
+            // ? not adding the parent window might cause issues
+            // ? on other desktop environments. will have to test.
+            // windows.push(w);
         }
 
-        let workspace = self.get_workspace();
-
         windows
-            .into_iter()
-            .filter(|w| self.is_visible(&w) == Some(workspace))
-            .collect()
     }
 
     /// Draws the rectangle that represents the highlighted region.
     /// Only used for region capture.
     fn draw_rect(&self, rect: &Rect) {
         self.display
-            .draw_rectangle(self.overlay.as_raw(), &self.gc, &rect);
+            .fill_rectangle(self.overlay.as_raw(), &self.gc, &rect);
     }
 
     /// This function is responsible for drawing both the parent window and the
@@ -293,7 +264,7 @@ impl<'a> WindowCapture<'a> {
         self.display.map_window(&self.overlay);
         self.grab_keyboard();
         self.grab_pointer();
-        let mut window = self.display.default_window();
+        let mut window = self.root;
         let mut time = Instant::now();
 
         loop {
