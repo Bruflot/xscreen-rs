@@ -300,13 +300,13 @@ impl Display {
         confine_to: Option<&Window>,
         cursor: u64,
         time: u64,
-    ) -> i32 {
+    ) -> Option<()> {
         let confine_win = match confine_to {
             Some(x) => x.as_raw(),
             None => 0,
         };
 
-        unsafe {
+        let ret = unsafe {
             xlib::XGrabPointer(
                 self.inner,
                 window.as_raw(),
@@ -318,7 +318,12 @@ impl Display {
                 cursor,
                 time,
             )
+        };
+
+        if ret == 0{
+            return Some(());
         }
+        None
     }
 
     pub fn ungrab_pointer(&self) {

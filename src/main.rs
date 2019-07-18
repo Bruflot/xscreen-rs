@@ -11,9 +11,10 @@ extern crate clap;
 extern crate image;
 extern crate xlib;
 
+mod overlay;
 mod region;
 mod screenshot;
-mod windowcapture;
+mod window;
 
 use chrono::Local;
 use clap::{App, Arg};
@@ -22,7 +23,7 @@ use screenshot::Screenshot;
 use std::path::PathBuf;
 use std::time::Duration;
 use std::{env, io, thread};
-use windowcapture::WindowCapture;
+use window::WindowCapture;
 use xlib::Display;
 
 /// Checks if a compositor is present
@@ -62,7 +63,7 @@ fn filename(matches: Option<&str>) -> Option<PathBuf> {
 
 fn main() {
     let matches = App::new("xscreen")
-        .version("0.2")
+        .version("0.3")
         .author("Bruflot <git@bruflot.com>")
         .about("Simple X11 screenshot utility")
         .arg(
@@ -100,21 +101,22 @@ fn main() {
         let path = filename(matches.value_of("output"))?;
         let display = Display::connect(None).ok()?;
 
-        if !has_compositor(&display){
+        if !has_compositor(&display) {
             return None;
         };
 
         let screenshot = if matches.is_present("window") {
             let window = WindowCapture::new(&display).show()?;
+            thread::sleep_ms(2);
             Screenshot::window(&display, &window)
         } else if matches.is_present("region") {
             let rect = Region::new(&display).show()?;
+            thread::sleep_ms(2);
             Screenshot::with_rect(&display, &display.default_window(), rect)
         } else {
             Screenshot::fullscreen(&display)
         };
 
-        thread::sleep_ms(2);
         screenshot?.save(&path).ok()?;
         Some(path)
     };

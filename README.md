@@ -9,6 +9,8 @@ Supports region, window, and fullscreen capture.
 A compositor is required for region and window capture for the time being. Colors of the overlay 
 can be edited in `src/region.rs` and `src/windowcapture.rs`.
 
+**Note:** Be sure to compile the project with the `--release` flag, as the speedup is exponential!
+
 ## Usage
 Global keybinds must be handled by your window manager.  
 Window capture can be toggled from region capture by hitting space.  
@@ -32,7 +34,8 @@ ARGS:
 ## Clipboard
 Copying the image to your clipboard can be done through e.g. `xclip`:
 ```
-$ xclip -selection clipboard -t image/png -i <file>
+$ xscreen /tmp/xscreen.png
+$ xclip -selection clipboard -t image/png -i /tmp/xscreen.png
 ```
 
 ## Todo
