@@ -32,7 +32,7 @@ use xlib::Display;
 /// Checks if a compositor is present
 fn has_compositor(display: &Display) -> Result<(), Error> {
     let atom = display.intern_atom("_NET_WM_CM_S0", false);
-    if display.get_selection_owner(atom) != 0 {
+    if display.get_selection_owner(atom) == 0 {
         return Err(Error::CompositorError);
     }
     Ok(())
@@ -110,11 +110,9 @@ fn main() {
 
         let screenshot = if matches.is_present("window") {
             let window = WindowCapture::new(&display).show()?;
-            thread::sleep_ms(2);
             Screenshot::window(&display, &window)
         } else if matches.is_present("region") {
             let rect = Region::new(&display).show()?;
-            thread::sleep_ms(2);
             Screenshot::with_rect(&display, &display.default_window(), rect)
         } else {
             Screenshot::fullscreen(&display)

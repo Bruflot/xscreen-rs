@@ -1,6 +1,7 @@
 extern crate image;
 extern crate xlib;
 
+use crate::errors::Error;
 use image::{ImageBuffer, RgbImage};
 use std::io;
 use std::path::Path;
@@ -17,7 +18,7 @@ pub struct Screenshot {
 }
 
 impl Screenshot {
-    pub fn fullscreen(display: &Display) -> io::Result<Self> {
+    pub fn fullscreen(display: &Display) -> Result<Self, Error> {
         let root = display.default_window();
         let width = display.get_width(0) as u32;
         let height = display.get_height(0) as u32;
@@ -33,7 +34,7 @@ impl Screenshot {
         )
     }
 
-    pub fn window(display: &Display, window: &Window) -> io::Result<Self> {
+    pub fn window(display: &Display, window: &Window) -> Result<Self, Error> {
         let rect = window.get_rect();
         Self::with_rect(
             display,
@@ -47,7 +48,7 @@ impl Screenshot {
         )
     }
 
-    pub fn with_rect(display: &Display, window: &Window, rect: Rect) -> io::Result<Self> {
+    pub fn with_rect(display: &Display, window: &Window, rect: Rect) -> Result<Self, Error> {
         Ok(Self {
             data: Image::get_image(
                 &display,
@@ -58,7 +59,7 @@ impl Screenshot {
                 rect.height,
                 xlib::Z_PIXMAP,
             )
-            .ok_or(io::ErrorKind::Other)?,
+            .ok_or(Error::ImageError)?,
             width: rect.width,
             height: rect.height,
         })

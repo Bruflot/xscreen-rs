@@ -50,6 +50,12 @@ impl<'a> GContext<'a> {
         }
     }
 
+    pub fn flush(&self){
+        unsafe{
+            xlib::XFlushGC(self.display.as_raw(), self.inner);
+        }
+    }
+
     pub fn as_raw(&self) -> XGC {
         self.inner
     }

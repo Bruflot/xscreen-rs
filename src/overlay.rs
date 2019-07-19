@@ -165,6 +165,7 @@ impl<'a> Drop for Overlay<'a> {
             self.ungrab_pointer();
             self.overlay.destroy();
             self.display.flush();
+            std::thread::sleep_ms(2);
         }
     }
 }
