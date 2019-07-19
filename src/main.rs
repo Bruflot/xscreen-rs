@@ -11,6 +11,7 @@ extern crate clap;
 extern crate image;
 extern crate xlib;
 
+mod errors;
 mod overlay;
 mod region;
 mod screenshot;
@@ -18,18 +19,23 @@ mod window;
 
 use chrono::Local;
 use clap::{App, Arg};
+use errors::Error;
 use region::Region;
 use screenshot::Screenshot;
+use std::error::Error as _;
 use std::path::PathBuf;
 use std::time::Duration;
-use std::{env, io, thread};
+use std::{env, thread};
 use window::WindowCapture;
 use xlib::Display;
 
 /// Checks if a compositor is present
-fn has_compositor(display: &Display) -> bool {
+fn has_compositor(display: &Display) -> Result<(), Error> {
     let atom = display.intern_atom("_NET_WM_CM_S0", false);
-    display.get_selection_owner(atom) != 0
+    if display.get_selection_owner(atom) != 0 {
+        return Err(Error::CompositorError);
+    }
+    Ok(())
 }
 
 /// Sleeps for the specified duration before resuming execution
@@ -43,10 +49,10 @@ fn delay(matches: Option<&str>) {
 
 /// Determines whether the given string is a valid filename or filepath.
 /// Generates a filename if necessary.
-fn filename(matches: Option<&str>) -> Option<PathBuf> {
+fn filename(matches: Option<&str>) -> Result<PathBuf, Error> {
     let mut path = match matches {
         Some(p) => PathBuf::from(p),
-        None => env::home_dir()?,
+        None => env::home_dir().ok_or(Error::InvalidPath)?,
     };
 
     if path.is_dir() {
@@ -58,7 +64,7 @@ fn filename(matches: Option<&str>) -> Option<PathBuf> {
 
     path = path.canonicalize().unwrap_or(path);
 
-    Some(path)
+    Ok(path)
 }
 
 fn main() {
@@ -97,13 +103,10 @@ fn main() {
 
     delay(matches.value_of("delay"));
 
-    let result = || -> Option<_> {
+    let result = || -> Result<_, Error> {
         let path = filename(matches.value_of("output"))?;
-        let display = Display::connect(None).ok()?;
-
-        if !has_compositor(&display) {
-            return None;
-        };
+        let display = Display::connect(None)?;
+        let _ = has_compositor(&display)?;
 
         let screenshot = if matches.is_present("window") {
             let window = WindowCapture::new(&display).show()?;
@@ -117,15 +120,15 @@ fn main() {
             Screenshot::fullscreen(&display)
         };
 
-        screenshot?.save(&path).ok()?;
-        Some(path)
+        screenshot?.save(&path)?;
+        Ok(path)
     };
 
     match result() {
-        Some(path) => println!(
-            "   \x1b[1;32mSuccess:\x1b[0m Saved to {}",
+        Ok(path) => println!(
+            "    \x1b[1;32mSuccess\x1b[0m Saved to {}",
             path.to_string_lossy()
         ),
-        None => println!("   \x1b[1;31mError:\x1b[0m {}", io::Error::last_os_error()),
+        Err(e) => println!("    \x1b[1;31mError\x1b[0m {}: {}", e, e.description()),
     }
 }

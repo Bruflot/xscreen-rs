@@ -91,7 +91,7 @@ impl<'a> Overlay<'a> {
     /// Grabs the pointer - this is necessary to receive motion events while
     /// any of the mouse buttons are being held down.
     pub fn grab_pointer(&self, motion: bool) -> Option<()> {
-        let mask = if motion{
+        let mask = if motion {
             xlib::BUTTON1_MOTION_MASK | xlib::BUTTON_RELEASE_MASK | xlib::BUTTON_PRESS_MASK
         } else {
             xlib::BUTTON_PRESS_MASK | xlib::POINTER_MOTION_MASK

@@ -17,7 +17,7 @@ pub struct Screenshot {
 }
 
 impl Screenshot {
-    pub fn fullscreen(display: &Display) -> Option<Self> {
+    pub fn fullscreen(display: &Display) -> io::Result<Self> {
         let root = display.default_window();
         let width = display.get_width(0) as u32;
         let height = display.get_height(0) as u32;
@@ -33,7 +33,7 @@ impl Screenshot {
         )
     }
 
-    pub fn window(display: &Display, window: &Window) -> Option<Self> {
+    pub fn window(display: &Display, window: &Window) -> io::Result<Self> {
         let rect = window.get_rect();
         Self::with_rect(
             display,
@@ -47,8 +47,8 @@ impl Screenshot {
         )
     }
 
-    pub fn with_rect(display: &Display, window: &Window, rect: Rect) -> Option<Self> {
-        Some(Self {
+    pub fn with_rect(display: &Display, window: &Window, rect: Rect) -> io::Result<Self> {
+        Ok(Self {
             data: Image::get_image(
                 &display,
                 &window,
@@ -57,7 +57,8 @@ impl Screenshot {
                 rect.width,
                 rect.height,
                 xlib::Z_PIXMAP,
-            )?,
+            )
+            .ok_or(io::ErrorKind::Other)?,
             width: rect.width,
             height: rect.height,
         })

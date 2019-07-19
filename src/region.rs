@@ -1,3 +1,4 @@
+use crate::errors::Error;
 use crate::overlay::Overlay;
 use xlib::{Display, EventKind, Rect};
 
@@ -25,7 +26,7 @@ impl<'a> Region<'a> {
         }
     }
 
-    pub fn show(&mut self) -> Option<Rect> {
+    pub fn show(&mut self) -> Result<Rect, Error> {
         self.overlay.show(true);
         let mut start = (0, 0);
 
@@ -47,9 +48,9 @@ impl<'a> Region<'a> {
                         let rect = Self::to_rect(start, (event.x_root, event.y_root));
 
                         if rect.width == 0 || rect.height == 0 {
-                            break;
+                            return Err(Error::InvalidRect);
                         }
-                        return Some(rect);
+                        return Ok(rect);
                     }
                 }
 
@@ -72,12 +73,12 @@ impl<'a> Region<'a> {
 
                 // The window was destroyed by external means.
                 EventKind::DestroyWindow(_) => {
-                    break;
+                    return Err(Error::WindowDestroyed);
                 }
                 _ => (),
             }
         }
 
-        None
+        Err(Error::Cancelled)
     }
 }

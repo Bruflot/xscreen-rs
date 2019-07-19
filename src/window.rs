@@ -1,3 +1,4 @@
+use crate::errors::Error;
 use crate::overlay::Overlay;
 use xlib::{Display, EventKind, Rect, Window};
 
@@ -50,8 +51,8 @@ impl<'a> WindowCapture<'a> {
     }
 
     /// Returns a list of all children windows that are visible.
-    /// Windows that do not have this attribute are not managed by the wm, 
-    /// or is often a container of some sort owned by the window manager. 
+    /// Windows that do not have this attribute are not managed by the wm,
+    /// or is often a container of some sort owned by the window manager.
     fn get_children(&self, window: &Window) -> Vec<Window> {
         let mut root = 0;
         let mut parent = 0;
@@ -109,7 +110,7 @@ impl<'a> WindowCapture<'a> {
     /// Returns the `Window` structure of the selected window.
     /// May return `None` if the capture was aborted.
     // ? Focus event? May generate if we don't own the mouse input events
-    pub fn show(&mut self) -> Option<Window> {
+    pub fn show(&mut self) -> Result<Window, Error> {
         self.overlay.show(false);
         let mut window = self.overlay.root;
         let windows = self.get_all_windows();
@@ -137,7 +138,7 @@ impl<'a> WindowCapture<'a> {
                 // Either the primary or secondary mouse button was pressed
                 EventKind::ButtonPress(event) => {
                     if event.button == MOUSE_LEFT {
-                        return Some(window);
+                        return Ok(window);
                     }
                 }
 
@@ -168,12 +169,12 @@ impl<'a> WindowCapture<'a> {
 
                 // The window was destroyed by external means.
                 EventKind::DestroyWindow(_) => {
-                    break;
+                    return Err(Error::WindowDestroyed);
                 }
                 _ => (),
             }
         }
 
-        None
+        Err(Error::Cancelled)
     }
 }
