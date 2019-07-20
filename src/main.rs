@@ -91,12 +91,13 @@ fn main() {
             Arg::with_name("window")
                 .short("w")
                 .long("window")
-                .help("Captures a specific window; can be toggled by launching region capture and hitting space")
+                .help("Captures a specific window")
                 .conflicts_with("region"),
         )
         .arg(
             Arg::with_name("output")
-                .help("Specifies the directory in which the screenshot will be saved. Default is $HOME.")
+                .help("Specifies the file or directory in which the screenshot will be saved.\n\
+                       Default is $HOME.")
                 .index(1),
         )
         .get_matches();

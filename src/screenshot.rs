@@ -2,7 +2,7 @@ extern crate image;
 extern crate xlib;
 
 use crate::errors::Error;
-use image::{ImageBuffer, RgbImage};
+use image::{ImageBuffer, RgbImage, ImageFormat};
 use std::io;
 use std::path::Path;
 use xlib::{Display, Image, Rect, Window};
@@ -80,6 +80,6 @@ impl Screenshot {
             image::Rgb(colors)
         });
 
-        image.save(path)
+        image.save_with_format(path, ImageFormat::PNG)
     }
 }

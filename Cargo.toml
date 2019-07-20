@@ -5,7 +5,7 @@ authors = ["Bruflot <git@bruflot.com>"]
 edition = "2018"
 
 [dependencies]
-image = "0.21"
+image = "0.22"
 png = "0.14"
 clap = "2.33"
 chrono = "0.4"
