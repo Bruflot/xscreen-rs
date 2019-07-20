@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use xlib::{
     Display, Event, EventKind, GCValues, GContext, Rect, SetWindowAttributes, VisualInfo, Window,
 };
@@ -165,7 +165,11 @@ impl<'a> Drop for Overlay<'a> {
             self.ungrab_pointer();
             self.overlay.destroy();
             self.display.flush();
-            std::thread::sleep_ms(2);
+
+            // Sleep for the duration of a single frame to make sure
+            // the buffer is new.
+            let frame = Duration::from_nanos(REFRESH_RATE as u64);
+            std::thread::sleep(frame);
         }
     }
 }

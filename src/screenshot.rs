@@ -2,7 +2,7 @@ extern crate image;
 extern crate xlib;
 
 use crate::errors::Error;
-use image::{ImageBuffer, RgbImage, ImageFormat};
+use image::{ImageBuffer, ImageFormat, RgbImage};
 use std::io;
 use std::path::Path;
 use xlib::{Display, Image, Rect, Window};

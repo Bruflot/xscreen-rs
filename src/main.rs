@@ -96,8 +96,10 @@ fn main() {
         )
         .arg(
             Arg::with_name("output")
-                .help("Specifies the file or directory in which the screenshot will be saved.\n\
-                       Default is $HOME.")
+                .help(
+                    "Specifies the file or directory in which the screenshot will be saved.\n\
+                     Default is $HOME.",
+                )
                 .index(1),
         )
         .get_matches();

@@ -39,7 +39,7 @@ $ xclip -selection clipboard -t image/png -i /tmp/xscreen.png
 ```
 
 ## Todo
-- [ ] Proper fix for visible overlay in screenshots
 - [ ] Support systems without compositors
 - [ ] Selection border
 - [ ] Make screenshots appear in 'recent'
+- [ ] Match refresh rate to the system's display(s)
