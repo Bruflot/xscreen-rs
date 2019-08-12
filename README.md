@@ -7,7 +7,7 @@ A simple and fast screenshot utility for X11 that aims to emulate macOS' screens
 Supports region, window, and fullscreen capture.
 
 A compositor is required for region and window capture for the time being. Colors of the overlay 
-can be edited in `src/region.rs` and `src/windowcapture.rs`.
+can be edited in `src/overlay.rs`.
 
 **Note:** Be sure to compile the project with the `--release` flag, as the speedup is exponential!
 
