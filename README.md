@@ -1,13 +1,12 @@
-# xscreen-rs
+# `xscreen-rs`
 
 [![Build Status](https://travis-ci.com/Bruflot/xscreen-rs.svg?token=cwgWL8QUNVpLfj8cDgps&branch=master)](https://travis-ci.com/Bruflot/xscreen-rs)
 [![](https://tokei.rs/b1/github/bruflot/xscreen-rs)](https://tokei.rs/b1/github/bruflot/xscreen-rs)
 
-A simple and fast screenshot utility for X11 that aims to emulate macOS' screenshot tool.   
-Supports region, window, and fullscreen capture.
+> A simple and fast screenshot utility for X11 that aims to emulate macOS' screenshot tool.   
+> Supports region, window, and fullscreen capture.
 
-A compositor is required for region and window capture for the time being. Colors of the overlay 
-can be edited in `src/overlay.rs`.
+A compositor is required. Colors of the overlay can be edited in `src/overlay.rs`.
 
 **Note:** Be sure to compile the project with the `--release` flag, as the speedup is exponential!
 
@@ -37,9 +36,3 @@ Copying the image to your clipboard can be done through e.g. `xclip`:
 $ xscreen /tmp/xscreen.png
 $ xclip -selection clipboard -t image/png -i /tmp/xscreen.png
 ```
-
-## Todo
-- [ ] Support systems without compositors
-- [ ] Selection border
-- [ ] Make screenshots appear in 'recent'
-- [ ] Match refresh rate to the system's display(s)
