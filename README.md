@@ -1,7 +1,7 @@
 # `xscreen-rs`
 
 [![Build Status](https://travis-ci.com/Bruflot/xscreen-rs.svg?token=cwgWL8QUNVpLfj8cDgps&branch=master)](https://travis-ci.com/Bruflot/xscreen-rs)
-[![](https://tokei.rs/b1/github/bruflot/xscreen-rs)](https://tokei.rs/b1/github/bruflot/xscreen-rs)
+[![](http://tokei.rs/b1/github/bruflot/xscreen-rs)](http://tokei.rs/b1/github/bruflot/xscreen-rs)
 
 > A simple and fast screenshot utility for X11 that aims to emulate macOS' screenshot tool.   
 > Supports region, window, and fullscreen capture.
