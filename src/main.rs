@@ -2,9 +2,6 @@
 // for Unix environments. AFAIK it was deprecated because the functionality
 // in Windows was not what you'd expect.
 
-// The `windowcapture` and `region` modules will soon be rewritten as they
-// share a lot of their functionality.
-
 #![allow(deprecated)]
 extern crate chrono;
 extern crate clap;

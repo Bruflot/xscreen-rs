@@ -168,7 +168,7 @@ impl<'a> Drop for Overlay<'a> {
 
             // Sleep for the duration of a single frame to make sure
             // the buffer is new.
-            let frame = Duration::from_nanos(REFRESH_RATE as u64);
+            let frame = Duration::from_nanos(REFRESH_RATE as u64 + 1);
             std::thread::sleep(frame);
         }
     }
