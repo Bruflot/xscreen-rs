@@ -12,7 +12,6 @@ A compositor is required. Colors of the overlay can be edited in `src/overlay.rs
 
 ## Usage
 Global keybinds must be handled by your window manager.  
-Window capture can be toggled from region capture by hitting space.  
 
 ```
 xscreen [FLAGS] [OPTIONS] <output>
